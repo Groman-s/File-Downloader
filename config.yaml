@@ -1,0 +1,3 @@
+port: :8085
+page: /download-resourcepack
+file_path: resourcepacks/resourcepack.zip
