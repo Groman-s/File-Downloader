@@ -1,4 +1,4 @@
-module resourcepack-downloader
+module files-downloader
 
 go 1.25.4
 
