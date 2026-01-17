@@ -1,3 +1,5 @@
-port: :8085
-page: /download-resourcepack
-file_path: resourcepacks/resourcepack.zip
+port: "8085"
+
+pages:
+- page: /example
+  path: files/example.txt

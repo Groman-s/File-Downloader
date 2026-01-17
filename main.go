@@ -9,18 +9,24 @@ import (
 )
 
 type Config struct {
-	Port     string `yaml:"port"`
-	Page     string `yaml:"page"`
-	FilePath string `yaml:"file_path"`
+	Port  string `yaml:"port"`
+	Pages []Page `yaml:"pages"`
+}
+
+type Page struct {
+	Page string `yaml:"page"`
+	Path string `yaml:"path"`
 }
 
 var config Config
 
+var pagesMapping map[string]string = make(map[string]string)
+
 func createDefaultConfig() error {
+
 	defaultConfig := Config{
-		Port:     ":8085",
-		Page:     "/download-resourcepack",
-		FilePath: "resourcepacks/resourcepack.zip",
+		Port:  "8085",
+		Pages: []Page{{Page: "/example", Path: "files/example.txt"}},
 	}
 
 	data, err := yaml.Marshal(&defaultConfig)
@@ -63,16 +69,33 @@ func main() {
 		return
 	}
 
-	fmt.Println("Сервис запущен. Ссылка на скачивание файла: localhost" + config.Port + config.Page)
+	fmt.Println("Сервис запущен на порту " + config.Port)
 
-	http.HandleFunc(config.Page, downloadHandler)
-	http.ListenAndServe(config.Port, nil)
+	for _, page := range config.Pages {
+		http.HandleFunc(page.Page, downloadHandler)
+		pagesMapping[page.Page] = page.Path
+		fmt.Println("Найден файл " + page.Path + " по URL: localhost:" + config.Port + page.Page)
+	}
+
+	http.ListenAndServe(":"+config.Port, nil)
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Disposition", "attachment; filename="+config.FilePath)
+	filePath, exists := pagesMapping[r.URL.Path]
+
+	if !exists {
+		http.Error(w, "Страница не найдена", http.StatusNotFound)
+		return
+	}
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		http.Error(w, "Файл должен быть на сервере, но он не был найден. Обратись к администратору.", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename="+filePath)
 	w.Header().Set("Content-Type", "application/octet-stream")
 
-	http.ServeFile(w, r, config.FilePath)
+	http.ServeFile(w, r, filePath)
 }
