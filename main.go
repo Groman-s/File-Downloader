@@ -22,6 +22,13 @@ var config Config
 
 var pagesMapping map[string]string = make(map[string]string)
 
+func checkFileExists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 func createDefaultConfig() error {
 
 	defaultConfig := Config{
@@ -48,8 +55,8 @@ func createDefaultConfig() error {
 
 func loadConfig() error {
 
-	if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
-		return createDefaultConfig()
+	if !checkFileExists("config.yaml") {
+		createDefaultConfig()
 	}
 
 	data, err := os.ReadFile("config.yaml")
@@ -72,9 +79,13 @@ func main() {
 	fmt.Println("Сервис запущен на порту " + config.Port)
 
 	for _, page := range config.Pages {
-		http.HandleFunc(page.Page, downloadHandler)
-		pagesMapping[page.Page] = page.Path
-		fmt.Println("Найден файл " + page.Path + " по URL: localhost:" + config.Port + page.Page)
+		if checkFileExists(page.Path) {
+			fmt.Println("Найден файл " + page.Path + " по URL: localhost:" + config.Port + page.Page)
+			pagesMapping[page.Page] = page.Path
+			http.HandleFunc(page.Page, downloadHandler)
+		} else {
+			fmt.Println("Файл " + page.Path + " не найден. Скачивание по пути: localhost:" + config.Port + page.Page + " не будет доступно.")
+		}
 	}
 
 	http.ListenAndServe(":"+config.Port, nil)
@@ -89,7 +100,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if !checkFileExists(filePath) {
 		http.Error(w, "Файл должен быть на сервере, но он не был найден. Обратись к администратору.", http.StatusNotFound)
 		return
 	}
